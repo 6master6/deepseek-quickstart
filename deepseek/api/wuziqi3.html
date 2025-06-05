@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>五子棋游戏</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .board {
+            display: grid;
+            grid-template-columns: repeat(15, 30px);
+            grid-template-rows: repeat(15, 30px);
+            background-color: #dcb35c;
+            border: 2px solid #8d6e3b;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .cell {
+            width: 30px;
+            height: 30px;
+            border: 1px solid #8d6e3b;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .cell:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .stone {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+        }
+        
+        .white {
+            background-color: white;
+        }
+        
+        .black {
+            background-color: black;
+        }
+        
+        .controls {
+            margin-top: 20px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        .status {
+            margin-top: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            height: 24px;
+        }
+        
+        .star {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background-color: black;
+            border-radius: 50%;
+        }
+        
+        .star.center {
+            top: 13px;
+            left: 13px;
+        }
+        
+        .star.top-left {
+            top: 3px;
+            left: 3px;
+        }
+        
+        .star.top-right {
+            top: 3px;
+            right: 3px;
+        }
+        
+        .star.bottom-left {
+            bottom: 3px;
+            left: 3px;
+        }
+        
+        .star.bottom-right {
+            bottom: 3px;
+            right: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>五子棋游戏</h1>
+    <div class="game-container">
+        <div class="board" id="board"></div>
+        <div class="status" id="status">轮到白棋(你)下</div>
+        <div class="controls">
+            <button id="restart">重新开始</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const BOARD_SIZE = 15;
+            const boardElement = document.getElementById('board');
+            const statusElement = document.getElementById('status');
+            const restartButton = document.getElementById('restart');
+            
+            let board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
+            let currentPlayer = 1; // 1 for white (user), 2 for black (computer)
+            let gameOver = false;
+            
+            // Initialize the board
+            function initBoard() {
+                boardElement.innerHTML = '';
+                board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
+                currentPlayer = 1;
+                gameOver = false;
+                statusElement.textContent = '轮到白棋(你)下';
+                
+                for (let i = 0; i < BOARD_SIZE; i++) {
+                    for (let j = 0; j < BOARD_SIZE; j++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.row = i;
+                        cell.dataset.col = j;
+                        
+                        // Add star points
+                        if ((i === 3 || i === 7 || i === 11) && (j === 3 || j === 7 || j === 11)) {
+                            const star = document.createElement('div');
+                            star.className = 'star';
+                            
+                            if (i === 7 && j === 7) {
+                                star.classList.add('center');
+                            } else if (i === 3 && j === 3) {
+                                star.classList.add('top-left');
+                            } else if (i === 3 && j === 11) {
+                                star.classList.add('top-right');
+                            } else if (i === 11 && j === 3) {
+                                star.classList.add('bottom-left');
+                            } else if (i === 11 && j === 11) {
+                                star.classList.add('bottom-right');
+                            }
+                            
+                            cell.appendChild(star);
+                        }
+                        
+                        cell.addEventListener('click', () => handleCellClick(i, j));
+                        boardElement.appendChild(cell);
+                    }
+                }
+            }
+            
+            // Handle cell click
+            function handleCellClick(row, col) {
+                if (gameOver || currentPlayer !== 1 || board[row][col] !== 0) {
+                    return;
+                }
+                
+                placeStone(row, col, 1);
+                
+                if (checkWin(row, col, 1)) {
+                    statusElement.textContent = '白棋(你)赢了！';
+                    gameOver = true;
+                    return;
+                }
+                
+                if (isBoardFull()) {
+                    statusElement.textContent = '平局！';
+                    gameOver = true;
+                    return;
+                }
+                
+                currentPlayer = 2;
+                statusElement.textContent = '电脑思考中...';
+                
+                // Computer move with a slight delay for better UX
+                setTimeout(computerMove, 500);
+            }
+            
+            // Computer makes a move
+            function computerMove() {
+                if (gameOver) return;
+                
+                // Simple AI: first check if computer can win, then block user, else random
+                let move = findWinningMove(2); // Check if computer can win
+                
+                if (!move) {
+                    move = findWinningMove(1); // Block user's winning move
+                }
+                
+                if (!move) {
+                    // If no immediate win/block, make a strategic move
+                    move = findStrategicMove();
+                }
+                
+                if (!move) {
+                    // If all else fails, pick a random empty spot
+                    move = findRandomMove();
+                }
+                
+                if (move) {
+                    const { row, col } = move;
+                    placeStone(row, col, 2);
+                    
+                    if (checkWin(row, col, 2)) {
+                        statusElement.textContent = '黑棋(电脑)赢了！';
+                        gameOver = true;
+                        return;
+                    }
+                    
+                    if (isBoardFull()) {
+                        statusElement.textContent = '平局！';
+                        gameOver = true;
+                        return;
+                    }
+                    
+                    currentPlayer = 1;
+                    statusElement.textContent = '轮到白棋(你)下';
+                }
+            }
+            
+            // Place a stone on the board
+            function placeStone(row, col, player) {
+                board[row][col] = player;
+                
+                const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+                const stone = document.createElement('div');
+                stone.className = `stone ${player === 1 ? 'white' : 'black'}`;
+                cell.appendChild(stone);
+            }
+            
+            // Check if a move wins the game
+            function checkWin(row, col, player) {
+                const directions = [
+                    [0, 1],  // horizontal
+                    [1, 0],  // vertical
+                    [1, 1],  // diagonal down-right
+                    [1, -1]  // diagonal down-left
+                ];
+                
+                for (const [dx, dy] of directions) {
+                    let count = 1;
+                    
+                    // Check in positive direction
+                    for (let i = 1; i < 5; i++) {
+                        const newRow = row + i * dx;
+                        const newCol = col + i * dy;
+                        
+                        if (
+                            newRow >= 0 && newRow < BOARD_SIZE &&
+                            newCol >= 0 && newCol < BOARD_SIZE &&
+                            board[newRow][newCol] === player
+                        ) {
+                            count++;
+                        } else {
+                            break;
+                        }
+                    }
+                    
+                    // Check in negative direction
+                    for (let i = 1; i < 5; i++) {
+                        const newRow = row - i * dx;
+                        const newCol = col - i * dy;
+                        
+                        if (
+                            newRow >= 0 && newRow < BOARD_SIZE &&
+                            newCol >= 0 && newCol < BOARD_SIZE &&
+                            board[newRow][newCol] === player
+                        ) {
+                            count++;
+                        } else {
+                            break;
+                        }
+                    }
+                    
+                    if (count >= 5) {
+                        return true;
+                    }
+                }
+                
+                return false;
+            }
+            
+            // Check if the board is full
+            function isBoardFull() {
+                for (let i = 0; i < BOARD_SIZE; i++) {
+                    for (let j = 0; j < BOARD_SIZE; j++) {
+                        if (board[i][j] === 0) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+            
+            // Find a winning move for the specified player
+            function findWinningMove(player) {
+                for (let i = 0; i < BOARD_SIZE; i++) {
+                    for (let j = 0; j < BOARD_SIZE; j++) {
+                        if (board[i][j] === 0) {
+                            board[i][j] = player;
+                            const isWin = checkWin(i, j, player);
+                            board[i][j] = 0;
+                            
+                            if (isWin) {
+                                return { row: i, col: j };
+                            }
+                        }
+                    }
+                }
+                return null;
+            }
+            
+            // Find a strategic move (center or near existing stones)
+            function findStrategicMove() {
+                // Prefer center if available
+                if (board[7][7] === 0) {
+                    return { row: 7, col: 7 };
+                }
+                
+                // Look for a position adjacent to existing stones
+                for (let i = 0; i < BOARD_SIZE; i++) {
+                    for (let j = 0; j < BOARD_SIZE; j++) {
+                        if (board[i][j] === 0 && hasAdjacentStone(i, j)) {
+                            return { row: i, col: j };
+                        }
+                    }
+                }
+                
+                return null;
+            }
+            
+            // Check if a cell has adjacent stones
+            function hasAdjacentStone(row, col) {
+                for (let i = Math.max(0, row - 1); i <= Math.min(BOARD_SIZE - 1, row + 1); i++) {
+                    for (let j = Math.max(0, col - 1); j <= Math.min(BOARD_SIZE - 1, col + 1); j++) {
+                        if ((i !== row || j !== col) && board[i][j] !== 0) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+            
+            // Find a random empty spot
+            function findRandomMove() {
+                const emptyCells = [];
+                
+                for (let i = 0; i < BOARD_SIZE; i++) {
+                    for (let j = 0; j < BOARD_SIZE; j++) {
+                        if (board[i][j] === 0) {
+                            emptyCells.push({ row: i, col: j });
+                        }
+                    }
+                }
+                
+                if (emptyCells.length > 0) {
+                    return emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                }
+                
+                return null;
+            }
+            
+            // Event listeners
+            restartButton.addEventListener('click', initBoard);
+            
+            // Initialize the game
+            initBoard();
+        });
+    </script>
+</body>
+</html>
